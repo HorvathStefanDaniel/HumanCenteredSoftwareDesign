@@ -69,7 +69,12 @@ csv_timer = time.time()
 
 #have to open the csv
 with open(csv_file, mode='w', newline='') as file:
-    writer = csv.writer(file)
+     # Define the column names for the CSV file
+    fieldnames = ['video_time_readable','elapsed_time', 'Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral', 'DetectedString']
+    writer = csv.DictWriter(file, fieldnames=fieldnames)
+    writer.writeheader()
+
+    start_time = time.time()  # Get the start time of the program
 
     #while loop
     while True:
@@ -100,11 +105,33 @@ with open(csv_file, mode='w', newline='') as file:
             # Expand the dimensions to match the input shape of the model (add a batch dimension)
             cropped_face = np.expand_dims(cropped_face, axis=-1)
 
+            # Calculate elapsed time in minutes, seconds, and milliseconds
+            elapsed_time = time.time() - start_time
+            minutes = int(elapsed_time // 60)
+            seconds = int(elapsed_time % 60)
+
             # Predict emotions using the emotion recognition model
             if current_time - emotion_timer >= 0.5:
-                emotion_probabilities = emotion_model.predict(np.expand_dims(cropped_face, axis=0))
+                emotion_probabilities = emotion_model.predict(np.expand_dims(cropped_face, axis=0))[0]
                 emotion_label = emotion_labels[np.argmax(emotion_probabilities)]
                 emotion_timer = current_time
+
+                # Create a dictionary with emotion probabilities
+                emotion_data = {
+                    'video_time_readable' : (str(minutes) + ":" + str(seconds)),
+                    'elapsed_time': elapsed_time,
+                    'Angry': emotion_probabilities[0],
+                    'Disgust': emotion_probabilities[1],
+                    'Fear': emotion_probabilities[2],
+                    'Happy': emotion_probabilities[3],
+                    'Sad': emotion_probabilities[4],
+                    'Surprise': emotion_probabilities[5],
+                    'Neutral': emotion_probabilities[6],
+                    'DetectedString' : emotion_label
+                }
+
+                # Write the data to the CSV file
+                writer.writerow(emotion_data)
 
             # Draw a rectangle around the detected face in the original frame
             cv2.rectangle(webcam_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
@@ -116,18 +143,6 @@ with open(csv_file, mode='w', newline='') as file:
             webcam_frame[0:48, 0:48] = (cropped_face * 255).astype(np.uint8)
         else:
             emotion_label = ""
-
-        if current_time - csv_timer >= 1:  # Write to CSV every second
-            emotion_probabilities = emotion_model.predict(np.expand_dims(cropped_face, axis=0))
-            detected_emotion = emotion_labels[np.argmax(emotion_probabilities)]
-            csv_timer = current_time
-
-            # Get the current timestamp
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-            # Write timestamp and detected emotion to CSV file
-            writer.writerow([timestamp, detected_emotion])
-            csv_timer = current_time
 
         # Display the frame
         cv2.imshow('Emotion Detection', webcam_frame)
