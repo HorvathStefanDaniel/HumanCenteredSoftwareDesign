@@ -42,8 +42,8 @@ webcam_fourcc = cv2.VideoWriter_fourcc(*'XVID')
 screen_fourcc = cv2.VideoWriter_fourcc(*'XVID')
 
 # Create VideoWriter objects for webcam and screen recording
-webcam_out = cv2.VideoWriter(webcam_output_file, webcam_fourcc, 15.0, (640, 480))  # Adjust frame size as needed
-screen_out = cv2.VideoWriter(screen_output_file, screen_fourcc, 15.0, (SCREEN_X, SCREEN_Y))
+webcam_out = cv2.VideoWriter(webcam_output_file, webcam_fourcc, 12.0, (640, 480))  # Adjust frame size as needed
+screen_out = cv2.VideoWriter(screen_output_file, screen_fourcc, 12.0, (SCREEN_X, SCREEN_Y))
 
 # Load the pre-trained face detection model (Haar Cascade)
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -75,6 +75,8 @@ with open(csv_file, mode='w', newline='') as file:
     writer.writeheader()
 
     start_time = time.time()  # Get the start time of the program
+    prev_frame_time = 0  # Initialize previous frame time
+
 
     #while loop
     while True:
@@ -85,6 +87,13 @@ with open(csv_file, mode='w', newline='') as file:
 
         # Detect faces in the frame
         faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5, minSize=(30, 30))
+
+        # Calculate elapsed time between frames in seconds
+        current_time = time.time()
+        elapsed_time = current_time - start_time
+
+        # Update previous frame time for the next iteration
+        prev_frame_time = current_time
 
         if len(faces) > 0:
             # Check if enough time has passed since the last emotion prediction
@@ -105,8 +114,6 @@ with open(csv_file, mode='w', newline='') as file:
             # Expand the dimensions to match the input shape of the model (add a batch dimension)
             cropped_face = np.expand_dims(cropped_face, axis=-1)
 
-            # Calculate elapsed time in minutes, seconds, and milliseconds
-            elapsed_time = time.time() - start_time
             minutes = int(elapsed_time // 60)
             seconds = int(elapsed_time % 60)
 
@@ -118,7 +125,7 @@ with open(csv_file, mode='w', newline='') as file:
 
                 # Create a dictionary with emotion probabilities
                 emotion_data = {
-                    'video_time_readable' : (str(minutes) + ":" + str(seconds)),
+                    'video_time_readable': f'{minutes:02d}:{seconds:02d}',  # Format minutes and seconds as 'MM:SS'
                     'elapsed_time': elapsed_time,
                     'Angry': emotion_probabilities[0],
                     'Disgust': emotion_probabilities[1],
