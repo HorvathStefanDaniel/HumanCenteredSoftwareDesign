@@ -42,8 +42,9 @@ webcam_fourcc = cv2.VideoWriter_fourcc(*'XVID')
 screen_fourcc = cv2.VideoWriter_fourcc(*'XVID')
 
 # Create VideoWriter objects for webcam and screen recording
-webcam_out = cv2.VideoWriter(webcam_output_file, webcam_fourcc, 12.0, (640, 480))  # Adjust frame size as needed
-screen_out = cv2.VideoWriter(screen_output_file, screen_fourcc, 12.0, (SCREEN_X, SCREEN_Y))
+frame_rate = 12
+webcam_out = cv2.VideoWriter(webcam_output_file, webcam_fourcc, frame_rate, (640, 480))  # Adjust frame size as needed
+screen_out = cv2.VideoWriter(screen_output_file, screen_fourcc, frame_rate, (SCREEN_X, SCREEN_Y))
 
 # Load the pre-trained face detection model (Haar Cascade)
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
@@ -61,7 +62,7 @@ emotion_label = ""
 
 # Initialize the webcam
 cap = cv2.VideoCapture(0)  # 0 corresponds to the default camera, change it if necessary
-cap.set(cv2.CAP_PROP_FPS, 30)
+cap.set(cv2.CAP_PROP_FPS, frame_rate)
 
 # Initialize a timer variable for emotion prediction
 emotion_timer = time.time()
@@ -74,9 +75,9 @@ with open(csv_file, mode='w', newline='') as file:
     writer = csv.DictWriter(file, fieldnames=fieldnames)
     writer.writeheader()
 
-    start_time = time.time()  # Get the start time of the program
-    prev_frame_time = 0  # Initialize previous frame time
-
+    # Initialize the timer variables for frame rate calculation
+    frame_count = 0
+    start_time = time.time()
 
     #while loop
     while True:
@@ -92,13 +93,13 @@ with open(csv_file, mode='w', newline='') as file:
         current_time = time.time()
         elapsed_time = current_time - start_time
 
-        # Update previous frame time for the next iteration
-        prev_frame_time = current_time
+        # Calculate the frame rate dynamically based on elapsed time and frame count
+        frame_rate = frame_count / elapsed_time
+
+        # Update the frame count for the next iteration
+        frame_count += 1
 
         if len(faces) > 0:
-            # Check if enough time has passed since the last emotion prediction
-            current_time = time.time()
-
             # Extract and save the first detected face region
             x, y, w, h = faces[0]
             cropped_face = gray[y:y + h, x:x + w]
@@ -113,32 +114,6 @@ with open(csv_file, mode='w', newline='') as file:
 
             # Expand the dimensions to match the input shape of the model (add a batch dimension)
             cropped_face = np.expand_dims(cropped_face, axis=-1)
-
-            minutes = int(elapsed_time // 60)
-            seconds = int(elapsed_time % 60)
-
-            # Predict emotions using the emotion recognition model
-            if current_time - emotion_timer >= 0.5:
-                emotion_probabilities = emotion_model.predict(np.expand_dims(cropped_face, axis=0))[0]
-                emotion_label = emotion_labels[np.argmax(emotion_probabilities)]
-                emotion_timer = current_time
-
-                # Create a dictionary with emotion probabilities
-                emotion_data = {
-                    'video_time_readable': f'{minutes:02d}:{seconds:02d}',  # Format minutes and seconds as 'MM:SS'
-                    'elapsed_time': elapsed_time,
-                    'Angry': emotion_probabilities[0],
-                    'Disgust': emotion_probabilities[1],
-                    'Fear': emotion_probabilities[2],
-                    'Happy': emotion_probabilities[3],
-                    'Sad': emotion_probabilities[4],
-                    'Surprise': emotion_probabilities[5],
-                    'Neutral': emotion_probabilities[6],
-                    'DetectedString' : emotion_label
-                }
-
-                # Write the data to the CSV file
-                writer.writerow(emotion_data)
 
             # Draw a rectangle around the detected face in the original frame
             cv2.rectangle(webcam_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
@@ -158,13 +133,57 @@ with open(csv_file, mode='w', newline='') as file:
         screen_frame = np.array(pyautogui.screenshot(region=(0, 0, SCREEN_X, SCREEN_Y)))
         screen_frame = cv2.cvtColor(screen_frame, cv2.COLOR_RGB2BGR)
 
+        #Check if enough time has passed since the last emotion prediction
+        current_time = time.time()
+        minutes = int(elapsed_time // 60)
+        seconds = int(elapsed_time % 60)
 
+        emotion_data = {
+                'video_time_readable': f'{minutes:02d}:{seconds:02d}',  # Format minutes and seconds as 'MM:SS'
+                'elapsed_time': elapsed_time,
+                'Angry': '',
+                'Disgust': '',
+                'Fear': '',
+                'Happy': '',
+                'Sad': '',
+                'Surprise': '',
+                'Neutral': '',
+                'DetectedString' : ''
+            }
+
+        # Predict emotions using the emotion recognition model
+        if current_time - emotion_timer >= 0.5:
+            emotion_probabilities = emotion_model.predict(np.expand_dims(cropped_face, axis=0))[0]
+            emotion_label = emotion_labels[np.argmax(emotion_probabilities)]
+            emotion_timer = current_time
+
+            # Create a dictionary with emotion probabilities
+            emotion_data = {
+                'video_time_readable': f'{minutes:02d}:{seconds:02d}',  # Format minutes and seconds as 'MM:SS'
+                'elapsed_time': elapsed_time,
+                'Angry': emotion_probabilities[0],
+                'Disgust': emotion_probabilities[1],
+                'Fear': emotion_probabilities[2],
+                'Happy': emotion_probabilities[3],
+                'Sad': emotion_probabilities[4],
+                'Surprise': emotion_probabilities[5],
+                'Neutral': emotion_probabilities[6],
+                'DetectedString' : emotion_label
+            }
+
+        # Write the data to the CSV file
+        writer.writerow(emotion_data)
         # Write frames to output videos
         webcam_out.write(webcam_frame)
         screen_out.write(screen_frame)
 
         # Exit the loop if 'q' is pressed or if the window is closed
         key = cv2.waitKey(1)
+        
+        #for testing purposes
+        if elapsed_time > 20:
+            break
+
         if key & 0xFF == ord('q') or key == 27:  # 'q' or Esc key
             break
 
