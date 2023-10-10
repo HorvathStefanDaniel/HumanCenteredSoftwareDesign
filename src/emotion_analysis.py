@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Read CSV file into a DataFrame
-file_path = ''  # Update this with the actual path to your CSV file
+file_path = '.\output\csv\emotions_data_2023-10-10_12-28-58.csv'  # Update this with the actual path to your CSV file
 df = pd.read_csv(file_path, delimiter=',')
 
 # Convert the 'timestamp' column to datetime for proper plotting
