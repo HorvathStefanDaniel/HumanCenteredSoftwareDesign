@@ -35,7 +35,7 @@ ret, frame = cap.read()
 video_out = cv2.VideoWriter(video_file, fourcc, frame_rate, (frame.shape[1], frame.shape[0]))
 
 # CSV setup
-fieldnames = ['timestamp', 'emotion', 'xmin', 'ymin', 'xmax', 'ymax']
+fieldnames = ['timestamp', 'emotion']
 with open(csv_file, 'w', newline='') as file:
     writer = csv.DictWriter(file, fieldnames=fieldnames)
     writer.writeheader()
@@ -50,12 +50,19 @@ with open(csv_file, 'w', newline='') as file:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = face_cascade.detectMultiScale(gray, 1.3, 5)
 
+       
+
         for (x, y, w, h) in faces:
+
+            #innitialize variables
+            xmin, ymin, xmax, ymax = 0, 0, 0, 0
+            counter = 0
+
             # Prepare face image for emotion detection
             face_img = frame[y:y+h, x:x+w]
             transform = transforms.Compose([transforms.ToPILImage(), transforms.Resize((640, 640)), transforms.ToTensor()])
             face_tensor = transform(face_img).unsqueeze(0)
-
+            
             # Emotion detection
             prediction = emotion_model(face_tensor)[0]
 
@@ -68,6 +75,8 @@ with open(csv_file, 'w', newline='') as file:
                     xmin, ymin, xmax, ymax = map(int, data[:4])
                     emotion = prediction.names[int(data[5])]
 
+                    print(data)
+
                     xmin = int(x + xmin * w / 640)
                     xmax = int(x + xmax * w / 640)
                     ymin = int(y + ymin * h / 640)
@@ -76,15 +85,18 @@ with open(csv_file, 'w', newline='') as file:
                     cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
                     cv2.putText(frame, emotion, (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
+                    counter = 20
+
                     # Write to CSV
                     writer.writerow({
                         'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        'emotion': emotion,
-                        'xmin': xmin,
-                        'ymin': ymin,
-                        'xmax': xmax,
-                        'ymax': ymax
+                        'emotion': emotion
                     })
+            elif counter > 0:
+                cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (0, 255, 0), 2)
+                cv2.putText(frame, emotion, (xmin, ymin - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                counter -= 1
+                
 
         # Display and record output
         cv2.imshow('Emotion Detection', frame)

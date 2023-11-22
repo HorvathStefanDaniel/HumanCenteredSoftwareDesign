@@ -50,7 +50,7 @@ screen_out = cv2.VideoWriter(screen_output_file, screen_fourcc, frame_rate, (SCR
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 # Load the pre-trained emotion recognition model (HDF5 format)
-emotion_model = tf.keras.models.load_model('model1.hdf5')  # Replace with the path to your emotion recognition model
+emotion_model = tf.keras.models.load_model('src/test/model1.hdf5')  # Replace with the path to your emotion recognition model
 
 # emotion_model = tf.keras.models.load_model('model-2-cpu.h5')  # Replace with the path to your emotion recognition model
 # emotion_model = load_model('model-Ahmadullah.h5')  # Replace with the path to your emotion recognition model
@@ -123,6 +123,26 @@ with open(csv_file, mode='w', newline='') as file:
 
             # Display the cropped face in the top-left corner of the frame
             webcam_frame[0:48, 0:48] = (cropped_face * 255).astype(np.uint8)
+
+            # Predict emotions using the emotion recognition model
+            if current_time - emotion_timer >= 0.5:
+                emotion_probabilities = emotion_model.predict(np.expand_dims(cropped_face, axis=0))[0]
+                emotion_label = emotion_labels[np.argmax(emotion_probabilities)]
+                emotion_timer = current_time
+
+                # Create a dictionary with emotion probabilities
+                emotion_data = {
+                    'video_time_readable': f'{minutes:02d}:{seconds:02d}',  # Format minutes and seconds as 'MM:SS'
+                    'elapsed_time': elapsed_time,
+                    'Angry': emotion_probabilities[0],
+                    'Disgust': emotion_probabilities[1],
+                    'Fear': emotion_probabilities[2],
+                    'Happy': emotion_probabilities[3],
+                    'Sad': emotion_probabilities[4],
+                    'Surprise': emotion_probabilities[5],
+                    'Neutral': emotion_probabilities[6],
+                    'DetectedString' : emotion_label
+                }
         else:
             emotion_label = ""
 
@@ -151,25 +171,7 @@ with open(csv_file, mode='w', newline='') as file:
                 'DetectedString' : ''
             }
 
-        # Predict emotions using the emotion recognition model
-        if current_time - emotion_timer >= 0.5:
-            emotion_probabilities = emotion_model.predict(np.expand_dims(cropped_face, axis=0))[0]
-            emotion_label = emotion_labels[np.argmax(emotion_probabilities)]
-            emotion_timer = current_time
-
-            # Create a dictionary with emotion probabilities
-            emotion_data = {
-                'video_time_readable': f'{minutes:02d}:{seconds:02d}',  # Format minutes and seconds as 'MM:SS'
-                'elapsed_time': elapsed_time,
-                'Angry': emotion_probabilities[0],
-                'Disgust': emotion_probabilities[1],
-                'Fear': emotion_probabilities[2],
-                'Happy': emotion_probabilities[3],
-                'Sad': emotion_probabilities[4],
-                'Surprise': emotion_probabilities[5],
-                'Neutral': emotion_probabilities[6],
-                'DetectedString' : emotion_label
-            }
+        
 
         # Write the data to the CSV file
         writer.writerow(emotion_data)
