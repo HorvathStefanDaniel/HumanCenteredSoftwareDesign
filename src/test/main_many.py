@@ -115,7 +115,7 @@ with open(csv_file, mode='w', newline='') as file:
         screen_out.write(screen_frame)
 
         # Exit the loop if 'q' is pressed or if the window is closed
-        if cv2.waitKey(1) & 0xFF == ord('q') or elapsed_time > 20:  # 'q' or 20 seconds for testing
+        if cv2.waitKey(1) & 0xFF == ord('q'): #or elapsed_time > 20:  # 'q' or 20 seconds for testing
             break
 
 # Release the webcam and close all OpenCV windows

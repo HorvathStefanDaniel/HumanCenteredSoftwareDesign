@@ -2,7 +2,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Read data from the local CSV file
-df = pd.read_csv('output\csv\emotions_data_2024-01-03_20-39-34.csv')
+df = pd.read_csv('output\csv\emotions_data_2024-01-05_00-39-06.csv')
 
 # Convert 'video_time_readable' to a datetime format for easier plotting
 df['timestamp'] = pd.to_datetime(df['video_time_readable'], format='%M:%S')
