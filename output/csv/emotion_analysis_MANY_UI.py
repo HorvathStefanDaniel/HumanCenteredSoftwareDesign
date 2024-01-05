@@ -20,34 +20,41 @@ def main():
         # Read data from the selected CSV file
         df = pd.read_csv(file_path)
 
-        # Convert 'video_time_readable' to a datetime format for easier plotting
-        df['timestamp'] = pd.to_datetime(df['video_time_readable'], format='%M:%S')
-
-        # Calculate seconds since the start of the recording
-        start_time = df['timestamp'].min()
-        df['seconds_since_start'] = (df['timestamp'] - start_time).dt.total_seconds()
+        # Convert 'video_time_readable' to seconds for easier plotting
+        time_parts = df['video_time_readable'].str.split(':', expand=True)
+        df['seconds_since_start'] = time_parts[0].astype(int) * 60 + time_parts[1].astype(int)
 
         # Define the sets for negative, positive, and neutral emotions for simplicity
-        negative_emotions = {'Angry', 'Disgust', 'Fear', 'Sad'}
+        negative_emotions = {'Angry', 'Disgust', 'Fear', 'Sad', 'Surprise'}
         positive_emotions = {'Happy'}
-        neutral_emotions = {'Surprise', 'Neutral'}
+        neutral_emotions = {'Neutral'}
 
         # Filter out rows where no emotion probabilities are provided
-        df = df.dropna(subset=['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral'])
+        emotion_columns = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
+        df = df.dropna(subset=emotion_columns)
 
         # Plotting
         plt.figure(figsize=(12, 6))
 
         # Plot all emotions
-        emotions = ['Angry', 'Disgust', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral']
         colors = {'Angry':'red', 'Disgust':'orange', 'Fear':'yellow', 'Happy':'green', 'Sad':'blue', 'Surprise':'purple', 'Neutral':'grey'}
-        for emotion in emotions:
+        for emotion in emotion_columns:
             plt.plot(df['seconds_since_start'], df[emotion], label=emotion, color=colors[emotion])
 
-        # Highlight the moments where a negative emotion is detected
-        negative_emotion_detected = df[df['DetectedString'].isin(negative_emotions)]
-        plt.scatter(negative_emotion_detected['seconds_since_start'], [0] * len(negative_emotion_detected), 
-                    color='black', label='Negative Emotion Detected', marker='X')
+        # Highlight the moments where a negative emotion or surprise is detected uninterrupted
+        previous_negative = False
+        for index, row in df.iterrows():
+            if row['DetectedString'] in negative_emotions:
+                if not previous_negative:  # new negative emotion sequence
+                    plt.scatter(row['seconds_since_start'], 0, color='black', marker='X')
+                    plt.annotate(row['video_time_readable'], 
+                                 (row['seconds_since_start'], 0),
+                                 textcoords="offset points", 
+                                 xytext=(0,10), 
+                                 ha='center')
+                previous_negative = True
+            else:
+                previous_negative = False  # reset on non-negative emotion
 
         plt.xlabel('Seconds Since Start')
         plt.ylabel('Emotion Probability')
